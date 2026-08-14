@@ -7,9 +7,9 @@ from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QPushButton
 
-from batch_ab_video.gui import MainWindow
+from batch_ab_video.gui import MainWindow, _StickerSourceDialog
 from batch_ab_video.models import StickerLayout
 
 
@@ -81,6 +81,15 @@ class MainWindowTests(unittest.TestCase):
         self.window._set_running_state(False)
         self.assertTrue(self.window.config_stack.isEnabled())
         self.assertTrue(self.window.mode_combo.isEnabled())
+
+    def test_sticker_source_dialog_offers_single_and_folder_without_cancel(self) -> None:
+        dialog = _StickerSourceDialog(self.window, "选择贴片 A 素材", "说明文案")
+        button_texts = sorted(button.text() for button in dialog.findChildren(QPushButton))
+        self.assertEqual(button_texts, ["单个素材", "文件夹"])
+        # Closing via the window X (reject) yields no selection.
+        dialog.reject()
+        self.assertEqual(dialog.result(), 0)
+        dialog.close()
 
 
 if __name__ == "__main__":

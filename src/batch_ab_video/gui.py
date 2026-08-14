@@ -10,6 +10,7 @@ from PySide6.QtGui import QAction, QCloseEvent, QColor, QDragEnterEvent, QDropEv
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
+    QDialog,
     QFileDialog,
     QFrame,
     QGraphicsDropShadowEffect,
@@ -48,6 +49,170 @@ from .models import (
 )
 from .processor import BatchProcessor
 from .paths import discover_media
+
+
+APP_STYLESHEET = """
+QWidget#Root {
+    background: #eef2f7;
+    color: #1d2736;
+    font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+    font-size: 13px;
+}
+QFrame#HeaderPanel, QFrame#ModePanel, QFrame#ActionPanel,
+QFrame#ProgressPanel, QFrame#ConfigPanel, QFrame#QueuePanel,
+QFrame#StatusPanel {
+    background: rgba(255, 255, 255, 232);
+    border: 1px solid rgba(255, 255, 255, 245);
+    border-radius: 14px;
+}
+QLabel#Eyebrow {
+    color: #3478c7;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+QLabel#Title {
+    color: #182230;
+    font-size: 25px;
+    font-weight: 700;
+}
+QLabel#Subtitle, QLabel#SectionHint, QLabel#StatusLabel {
+    color: #657487;
+    font-size: 12px;
+}
+QLabel#EngineBadge, QLabel#QueueSummary {
+    background: rgba(238, 246, 255, 210);
+    border: 1px solid #c8ddf6;
+    border-radius: 10px;
+    color: #286bb2;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 10px;
+}
+QLabel#FieldLabel {
+    color: #344255;
+    font-weight: 600;
+}
+QLabel#SectionTitle {
+    color: #263446;
+    font-size: 13px;
+    font-weight: 700;
+}
+QLabel#ProgressValue {
+    color: #1671cf;
+    font-size: 17px;
+    font-weight: 700;
+}
+QLabel#StatusDot {
+    background: #34c759;
+    border-radius: 4px;
+}
+QLineEdit, QComboBox {
+    min-height: 32px;
+    padding: 3px 10px;
+    border: 1px solid #d8e0ea;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 220);
+    color: #233043;
+    selection-background-color: #b8d9ff;
+}
+QLineEdit::placeholder { color: #98a4b3; }
+QLineEdit:focus, QComboBox:focus {
+    border: 1px solid #007aff;
+    background: #ffffff;
+}
+QComboBox::drop-down { border: 0; width: 28px; }
+QComboBox QAbstractItemView {
+    background: #ffffff;
+    border: 1px solid #d4dce7;
+    color: #1f2a38;
+    selection-background-color: #dcebff;
+    outline: 0;
+}
+QPushButton {
+    min-height: 32px;
+    padding: 3px 10px;
+    border-radius: 8px;
+    font-weight: 600;
+}
+QPushButton#PrimaryButton {
+    background: #007aff;
+    color: #ffffff;
+    border: 1px solid #0071e8;
+}
+QPushButton#PrimaryButton:hover { background: #0a84ff; }
+QPushButton#PrimaryButton:pressed { background: #0065d1; }
+QPushButton#SecondaryButton {
+    background: rgba(248, 250, 253, 230);
+    color: #2c5e98;
+    border: 1px solid #d4ddea;
+}
+QPushButton#SecondaryButton:hover {
+    background: #edf6ff;
+    border-color: #b8d2ed;
+}
+QPushButton#SecondaryButton:checked {
+    background: #dceeff;
+    border-color: #8dc0f3;
+    color: #125da8;
+}
+QPushButton#DangerButton {
+    background: rgba(255, 250, 250, 220);
+    color: #d64f4a;
+    border: 1px solid #f0d0cf;
+}
+QPushButton#DangerButton:hover { background: #fff0ef; }
+QPushButton:disabled {
+    background: #f0f3f7;
+    color: #a3aebb;
+    border: 1px solid #e1e6ed;
+}
+QProgressBar {
+    min-height: 10px;
+    border: 0;
+    border-radius: 5px;
+    background: #e4eaf2;
+    text-align: center;
+}
+QProgressBar::chunk {
+    border-radius: 5px;
+    background: #007aff;
+}
+QTableWidget {
+    background: rgba(251, 253, 255, 220);
+    alternate-background-color: #f5f8fc;
+    border: 1px solid #e5eaf0;
+    border-radius: 8px;
+    color: #334155;
+    selection-background-color: #dcebff;
+    selection-color: #182230;
+}
+QHeaderView::section {
+    background: #f1f5f9;
+    color: #627184;
+    border: 0;
+    border-bottom: 1px solid #dde5ee;
+    padding: 8px 6px;
+    font-weight: 700;
+}
+QTableWidget::item {
+    padding: 7px 6px;
+    border-bottom: 1px solid #edf1f5;
+}
+QTableWidget::item:selected { background: #dcebff; }
+QScrollBar:vertical {
+    background: transparent;
+    width: 9px;
+    margin: 3px;
+}
+QScrollBar::handle:vertical {
+    background: #c5cfdb;
+    border-radius: 4px;
+    min-height: 28px;
+}
+QScrollBar::handle:vertical:hover { background: #aebdce; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+"""
 
 
 class DropPathLineEdit(QLineEdit):
@@ -94,6 +259,55 @@ class DropPathLineEdit(QLineEdit):
         if self.drop_kind == "folder":
             return str(path) if path.is_dir() else ""
         return str(path)
+
+
+class _StickerSourceDialog(QDialog):
+    """iOS 风格贴片素材来源弹窗：单个素材 / 文件夹，无取消按钮（右上角 X 关闭）。"""
+
+    SINGLE = 1
+    FOLDER = 2
+
+    def __init__(self, parent: QWidget | None, title: str, message: str) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setModal(True)
+        self.setObjectName("Root")
+        self.setMinimumWidth(400)
+        self.setStyleSheet(APP_STYLESHEET)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(14)
+
+        panel = QFrame()
+        panel.setObjectName("ConfigPanel")
+        panel_layout = QVBoxLayout(panel)
+        panel_layout.setContentsMargins(20, 18, 20, 18)
+        panel_layout.setSpacing(8)
+
+        heading = QLabel(title)
+        heading.setObjectName("SectionTitle")
+        heading.setStyleSheet("font-size: 16px; color: #182230;")
+        panel_layout.addWidget(heading)
+
+        hint = QLabel(message)
+        hint.setObjectName("SectionHint")
+        hint.setWordWrap(True)
+        panel_layout.addWidget(hint)
+
+        layout.addWidget(panel)
+
+        button_row = QHBoxLayout()
+        button_row.setSpacing(10)
+        single_button = QPushButton("单个素材")
+        single_button.setObjectName("PrimaryButton")
+        single_button.clicked.connect(lambda: self.done(_StickerSourceDialog.SINGLE))
+        folder_button = QPushButton("文件夹")
+        folder_button.setObjectName("SecondaryButton")
+        folder_button.clicked.connect(lambda: self.done(_StickerSourceDialog.FOLDER))
+        button_row.addWidget(single_button)
+        button_row.addWidget(folder_button)
+        layout.addLayout(button_row)
 
 
 class BatchWorker(QThread):
@@ -444,170 +658,7 @@ class MainWindow(QMainWindow):
         panel_layout.addWidget(self.sticker_bitrate_combo, 5, 1)
 
     def _apply_style(self) -> None:
-        self.setStyleSheet(
-            """
-            QWidget#Root {
-                background: #eef2f7;
-                color: #1d2736;
-                font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
-                font-size: 13px;
-            }
-            QFrame#HeaderPanel, QFrame#ModePanel, QFrame#ActionPanel,
-            QFrame#ProgressPanel, QFrame#ConfigPanel, QFrame#QueuePanel,
-            QFrame#StatusPanel {
-                background: rgba(255, 255, 255, 232);
-                border: 1px solid rgba(255, 255, 255, 245);
-                border-radius: 14px;
-            }
-            QLabel#Eyebrow {
-                color: #3478c7;
-                font-size: 10px;
-                font-weight: 700;
-                letter-spacing: 1px;
-            }
-            QLabel#Title {
-                color: #182230;
-                font-size: 25px;
-                font-weight: 700;
-            }
-            QLabel#Subtitle, QLabel#SectionHint, QLabel#StatusLabel {
-                color: #657487;
-                font-size: 12px;
-            }
-            QLabel#EngineBadge, QLabel#QueueSummary {
-                background: rgba(238, 246, 255, 210);
-                border: 1px solid #c8ddf6;
-                border-radius: 10px;
-                color: #286bb2;
-                font-size: 12px;
-                font-weight: 600;
-                padding: 6px 10px;
-            }
-            QLabel#FieldLabel {
-                color: #344255;
-                font-weight: 600;
-            }
-            QLabel#SectionTitle {
-                color: #263446;
-                font-size: 13px;
-                font-weight: 700;
-            }
-            QLabel#ProgressValue {
-                color: #1671cf;
-                font-size: 17px;
-                font-weight: 700;
-            }
-            QLabel#StatusDot {
-                background: #34c759;
-                border-radius: 4px;
-            }
-            QLineEdit, QComboBox {
-                min-height: 32px;
-                padding: 3px 10px;
-                border: 1px solid #d8e0ea;
-                border-radius: 8px;
-                background: rgba(255, 255, 255, 220);
-                color: #233043;
-                selection-background-color: #b8d9ff;
-            }
-            QLineEdit::placeholder { color: #98a4b3; }
-            QLineEdit:focus, QComboBox:focus {
-                border: 1px solid #007aff;
-                background: #ffffff;
-            }
-            QComboBox::drop-down { border: 0; width: 28px; }
-            QComboBox QAbstractItemView {
-                background: #ffffff;
-                border: 1px solid #d4dce7;
-                color: #1f2a38;
-                selection-background-color: #dcebff;
-                outline: 0;
-            }
-            QPushButton {
-                min-height: 32px;
-                padding: 3px 10px;
-                border-radius: 8px;
-                font-weight: 600;
-            }
-            QPushButton#PrimaryButton {
-                background: #007aff;
-                color: #ffffff;
-                border: 1px solid #0071e8;
-            }
-            QPushButton#PrimaryButton:hover { background: #0a84ff; }
-            QPushButton#PrimaryButton:pressed { background: #0065d1; }
-            QPushButton#SecondaryButton {
-                background: rgba(248, 250, 253, 230);
-                color: #2c5e98;
-                border: 1px solid #d4ddea;
-            }
-            QPushButton#SecondaryButton:hover {
-                background: #edf6ff;
-                border-color: #b8d2ed;
-            }
-            QPushButton#SecondaryButton:checked {
-                background: #dceeff;
-                border-color: #8dc0f3;
-                color: #125da8;
-            }
-            QPushButton#DangerButton {
-                background: rgba(255, 250, 250, 220);
-                color: #d64f4a;
-                border: 1px solid #f0d0cf;
-            }
-            QPushButton#DangerButton:hover { background: #fff0ef; }
-            QPushButton:disabled {
-                background: #f0f3f7;
-                color: #a3aebb;
-                border: 1px solid #e1e6ed;
-            }
-            QProgressBar {
-                min-height: 10px;
-                border: 0;
-                border-radius: 5px;
-                background: #e4eaf2;
-                text-align: center;
-            }
-            QProgressBar::chunk {
-                border-radius: 5px;
-                background: #007aff;
-            }
-            QTableWidget {
-                background: rgba(251, 253, 255, 220);
-                alternate-background-color: #f5f8fc;
-                border: 1px solid #e5eaf0;
-                border-radius: 8px;
-                color: #334155;
-                selection-background-color: #dcebff;
-                selection-color: #182230;
-            }
-            QHeaderView::section {
-                background: #f1f5f9;
-                color: #627184;
-                border: 0;
-                border-bottom: 1px solid #dde5ee;
-                padding: 8px 6px;
-                font-weight: 700;
-            }
-            QTableWidget::item {
-                padding: 7px 6px;
-                border-bottom: 1px solid #edf1f5;
-            }
-            QTableWidget::item:selected { background: #dcebff; }
-            QScrollBar:vertical {
-                background: transparent;
-                width: 9px;
-                margin: 3px;
-            }
-            QScrollBar::handle:vertical {
-                background: #c5cfdb;
-                border-radius: 4px;
-                min-height: 28px;
-            }
-            QScrollBar::handle:vertical:hover { background: #aebdce; }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
-            """
-        )
+        self.setStyleSheet(APP_STYLESHEET)
 
     @staticmethod
     def _apply_elevation(widget: QWidget) -> None:
@@ -670,24 +721,23 @@ class MainWindow(QMainWindow):
             self.sticker_video_folder_edit.setText(path)
 
     def _choose_top_asset_source(self) -> None:
-        path = self._choose_sticker_source("选择贴片 A 素材（图片或视频）或文件夹")
+        path = self._choose_sticker_source("选择贴片 A 素材")
         if path:
             self.top_asset_edit.setText(path)
 
     def _choose_bottom_asset_source(self) -> None:
-        path = self._choose_sticker_source("选择贴片 B 素材（图片或视频）或文件夹")
+        path = self._choose_sticker_source("选择贴片 B 素材")
         if path:
             self.bottom_asset_edit.setText(path)
 
     def _choose_sticker_source(self, title: str) -> str:
-        choice = QMessageBox.question(
+        dialog = _StickerSourceDialog(
             self,
             title,
-            "选择单个贴片素材（图片或视频）？\n点击“是”选择素材文件，点击“否”选择文件夹。",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
-            QMessageBox.StandardButton.Yes,
+            "选择单个素材文件（图片或视频），或选择包含素材的文件夹。",
         )
-        if choice == QMessageBox.StandardButton.Yes:
+        choice = dialog.exec()
+        if choice == _StickerSourceDialog.SINGLE:
             path, _ = QFileDialog.getOpenFileName(
                 self,
                 title,
@@ -695,7 +745,7 @@ class MainWindow(QMainWindow):
                 "Media Files (*.png *.jpg *.jpeg *.webp *.bmp *.mp4 *.mov *.mkv *.avi)",
             )
             return path
-        if choice == QMessageBox.StandardButton.No:
+        if choice == _StickerSourceDialog.FOLDER:
             return QFileDialog.getExistingDirectory(self, title)
         return ""
 
