@@ -41,6 +41,7 @@ class BitratePreset:
 
 OUTPUT_PRESETS: tuple[OutputPreset, ...] = (
     OutputPreset("竖屏 1080x1920", 1080, 1920, 30),
+    OutputPreset("竖屏 720x1280", 720, 1280, 30),
     OutputPreset("横屏 1920x1080", 1920, 1080, 30),
     OutputPreset("方屏 1080x1080", 1080, 1080, 30),
     OutputPreset("横屏 1280x720", 1280, 720, 30),

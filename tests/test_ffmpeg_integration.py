@@ -27,7 +27,7 @@ class FFmpegIntegrationTests(unittest.TestCase):
             _make_sample(video_a, "red", "440")
             _make_sample(video_b, "blue", "880")
 
-            config = BatchConfig(video_a, b_folder, out_folder, OUTPUT_PRESETS[3], BITRATE_PRESETS[2])
+            config = BatchConfig(video_a, b_folder, out_folder, _preset(1280, 720), BITRATE_PRESETS[2])
             processor = BatchProcessor(FFmpegTools.discover())
             tasks = processor.build_tasks(config)
             results = processor.run(
@@ -61,7 +61,7 @@ class FFmpegIntegrationTests(unittest.TestCase):
                 top_source=top_asset,
                 bottom_source=bottom_asset,
                 output_dir=out_folder,
-                preset=OUTPUT_PRESETS[3],
+                preset=_preset(1280, 720),
                 bitrate=BITRATE_PRESETS[2],
             )
             processor = BatchProcessor(FFmpegTools.discover())
@@ -102,7 +102,7 @@ class FFmpegIntegrationTests(unittest.TestCase):
                 top_source=left_asset,
                 bottom_source=right_asset,
                 output_dir=out_folder,
-                preset=OUTPUT_PRESETS[3],
+                preset=_preset(1280, 720),
                 bitrate=BITRATE_PRESETS[2],
                 layout=StickerLayout.LEFT_RIGHT,
             )
@@ -158,10 +158,53 @@ class FFmpegIntegrationTests(unittest.TestCase):
             # The output follows the main video length; the 0.3s top video loops to fill it.
             self.assertAlmostEqual(float(info["format"]["duration"]), 1.0, delta=0.3)
 
+    def test_processes_sticker_at_vertical_720p_preset(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            video_folder = root / "videos"
+            out_folder = root / "out"
+            for folder in (video_folder, out_folder):
+                folder.mkdir()
+            video = video_folder / "clip.mp4"
+            top_asset = root / "top.png"
+            bottom_asset = root / "bottom.png"
+
+            _make_sample_no_audio(video, "green")
+            _make_image(top_asset, "yellow")
+            _make_image(bottom_asset, "purple")
+
+            preset = next(p for p in OUTPUT_PRESETS if (p.width, p.height) == (720, 1280))
+            config = StickerConfig(
+                video_folder=video_folder,
+                top_source=top_asset,
+                bottom_source=bottom_asset,
+                output_dir=out_folder,
+                preset=preset,
+                bitrate=BITRATE_PRESETS[2],
+            )
+            processor = BatchProcessor(FFmpegTools.discover())
+            tasks = processor.build_sticker_tasks(config)
+            results = processor.run_sticker(
+                config=config,
+                tasks=tasks,
+                cancel_event=_UnsetEvent(),
+                pause_event=_UnsetEvent(),
+            )
+            info = _probe(results[0].task.output_path)
+
+            self.assertTrue(results[0].ok, results[0].message)
+            self.assertEqual(_video_stream_value(info, "width"), 720)
+            self.assertEqual(_video_stream_value(info, "height"), 1280)
+            self.assertFalse(any(stream.get("codec_type") == "audio" for stream in info["streams"]))
+
 
 class _UnsetEvent:
     def is_set(self) -> bool:
         return False
+
+
+def _preset(width: int, height: int):
+    return next(p for p in OUTPUT_PRESETS if (p.width, p.height) == (width, height))
 
 
 def _make_sample(path: Path, color: str, frequency: str) -> None:

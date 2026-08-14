@@ -130,7 +130,7 @@ class FFmpegCommandTests(unittest.TestCase):
             top_source=Path("left.png"),
             bottom_source=Path("right.png"),
             output_dir=Path("out"),
-            preset=OUTPUT_PRESETS[1],
+            preset=next(p for p in OUTPUT_PRESETS if (p.width, p.height) == (1920, 1080)),
             bitrate=BITRATE_PRESETS[1],
             layout=StickerLayout.LEFT_RIGHT,
         )

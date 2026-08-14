@@ -28,8 +28,8 @@ class MainWindowTests(unittest.TestCase):
     def test_sticker_modes_expose_the_correct_presets_and_layout(self) -> None:
         self.window.mode_combo.setCurrentIndex(1)
         self.assertEqual(
-            [self.window.sticker_preset_combo.itemData(index).width for index in range(2)],
-            [1080, 1080],
+            [self.window.sticker_preset_combo.itemData(index).width for index in range(3)],
+            [1080, 720, 1080],
         )
 
         self.window.mode_combo.setCurrentIndex(2)
